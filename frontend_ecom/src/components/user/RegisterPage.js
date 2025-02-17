@@ -17,6 +17,10 @@ const RegisterPage = () => {
     address: '',
     password: '',
     confirm_password: '',
+    user_type: 'customer', // Default to customer
+    store_name: '',
+    description: '',
+    image: null, // For Vendor
   });
 
   const [loading, setLoading] = useState(false);
@@ -27,6 +31,11 @@ const RegisterPage = () => {
     setFormData({ ...formData, [name]: value });
   };
 
+  const handleFileChange = (e) => {
+    const { name, files } = e.target;
+    setFormData({ ...formData, [name]: files[0] });
+  };
+
   const handleSubmit = (e) => {
     e.preventDefault();
     if (formData.password !== formData.confirm_password) {
@@ -35,8 +44,10 @@ const RegisterPage = () => {
     }
 
     setLoading(true);
+
+    // Adjust the endpoint or handle the different user types on the backend
     api
-      .post('register/', formData)
+      .post('register/', formData ,{ headers: { 'Content-Type': 'multipart/form-data' } })
       .then((res) => {
         console.log(res.data);
         setError('');
@@ -50,13 +61,37 @@ const RegisterPage = () => {
       });
   };
 
+  const handleUserTypeChange = (e) => {
+    const { value } = e.target;
+    setFormData({ ...formData, user_type: value });
+  };
+
   return (
     <div className="register-container m-5">
       <div className="register-card shadow p-5">
         {error && <Error error={error} />}
         <h2 className="register-title">Create an Account</h2>
-        <form className="form" onSubmit={handleSubmit}>
-          {[
+
+        <form className="form" onSubmit={handleSubmit} encType="multipart/form-data">
+          <div className="mb-3">
+            <label htmlFor="user_type" className="form-label">
+              User Type:
+            </label>
+            <select
+              className="form-control"
+              id="user_type"
+              name="user_type"
+              value={formData.user_type}
+              onChange={handleUserTypeChange}
+              required
+            >
+              <option value="customer">Customer</option>
+              <option value="vendor">Vendor</option>
+            </select>
+          </div>
+
+          {/* Common Fields */}
+          {[ 
             { name: 'username', label: 'Username', type: 'text' },
             { name: 'email', label: 'Email', type: 'email' },
             { name: 'first_name', label: 'First Name', type: 'text' },
@@ -66,7 +101,7 @@ const RegisterPage = () => {
             { name: 'state', label: 'State', type: 'text' },
             { name: 'address', label: 'Address', type: 'text' },
             { name: 'password', label: 'Password', type: 'password' },
-            { name: 'confirm_password', label: 'Confirm Password', type: 'password' },
+            { name: 'confirm_password', label: 'Confirm Password', type: 'password' }
           ].map((field) => (
             <div className="mb-3" key={field.name}>
               <label htmlFor={field.name} className="form-label">
@@ -84,10 +119,15 @@ const RegisterPage = () => {
               />
             </div>
           ))}
+
+          {/* Vendor-Specific Fields */}
+        
+
           <button type="submit" className="btn btn-primary w-100" disabled={loading}>
-            Register
+            {loading ? 'Registering...' : 'Register'}
           </button>
         </form>
+
         <div className="register-footer mt-3">
           <p>
             Already have an account? <Link to="/login">Login</Link>

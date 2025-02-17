@@ -2,18 +2,40 @@ from rest_framework import serializers
 from .models import Product,Cart,CartItem
 from django.contrib.auth import get_user_model
 
-
+User =get_user_model()
 
 class ProductSerializer(serializers.ModelSerializer):
     class Meta:
         model = Product
         fields = ["id","name","slug","image","description","category","price"]
 
+class UserSerializer(serializers.ModelSerializer):
+    items = serializers.SerializerMethodField()
+    class Meta:
+        model = get_user_model()
+        fields = ["id","username","first_name","last_name","email","city","state","address","phone","date_joined","items","user_type"]
+    
+    def get_items(self,user):
+        if user.user_type == "customer":
+            cartitems = CartItem.objects.filter(cart__user=user,cart__paid = True)[:15]
+            serializer = NewCartItemSerializer(cartitems,many=True)
+            return serializer.data
+        else:
+            return None
+
+
 class DetailedProductSerializer(serializers.ModelSerializer):
     similar_products = serializers.SerializerMethodField()
+    vendor_details = serializers.SerializerMethodField()
+
     class Meta:
         model =Product
-        fields = ["id","name","slug","image","description","category","price","similar_products"]
+        fields = ["id","name","slug","image","description","category","price","similar_products","vendor_details"]
+
+    def get_vendor_details(self, product):
+        if product.vendor.user_type == "vendor":  # Check if the user is a vendor
+            return UserSerializer(product.vendor).data  # Return vendor details
+        return None  #
 
     def get_similar_products(self,product):
         products  =Product.objects.filter(category =product.category).exclude(id=product.id)
@@ -82,17 +104,8 @@ class NewCartItemSerializer(serializers.ModelSerializer):
 
 
 
-class UserSerializer(serializers.ModelSerializer):
-    items = serializers.SerializerMethodField()
-    class Meta:
-        model = get_user_model()
-        fields = ["id","username","first_name","last_name","email","city","state","address","phone","date_joined","items"]
-    
-    def get_items(self,user):
-        cartitems = CartItem.objects.filter(cart__user=user,cart__paid = True)[:15]
-        serializer = NewCartItemSerializer(cartitems,many=True)
-        return serializer.data
-    
+
+        
 
 
 
@@ -100,19 +113,16 @@ User = get_user_model()
 
 class RegisterSerializer(serializers.ModelSerializer):
     confirm_password = serializers.CharField(write_only=True)
+    user_type = serializers.ChoiceField(choices=[("customer", "Customer"), ("vendor", "Vendor")], write_only=True)
+    phone = serializers.CharField(required=False, allow_blank=True)
+    address = serializers.CharField(required=False, allow_blank=True)
+    
+
     class Meta:
         model = User
         fields = [
-            "username",
-            "email",
-            "first_name",
-            "last_name",
-            "phone",
-            "city",
-            "state",
-            "address",
-            "password",
-            "confirm_password",
+            "username", "email", "first_name", "last_name",
+            "password", "confirm_password", "user_type", "phone", "city", "state", "address"
         ]
         extra_kwargs = {
             "password": {"write_only": True},
@@ -126,7 +136,18 @@ class RegisterSerializer(serializers.ModelSerializer):
 
     def create(self, validated_data):
         validated_data.pop("confirm_password")
-        # Use get_user_model() for creating the user
+      
+     
+        
+        # Create the user first
         user = User.objects.create_user(**validated_data)
+
+        # Create Vendor instance if user type is "vendor"
+        # if user_type == "vendor":
+        #     # Create the Vendor object associated with the user
+        #     Vendor.objects.create(user=user, store_name=store_name, description=description, image=image)
+        
         return user
+
     
+

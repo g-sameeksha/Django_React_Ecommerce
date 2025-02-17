@@ -1,91 +1,92 @@
-import React, { useContext, useState } from 'react'
-import api from '../../utils/api'
-import { Link, Navigate, useLocation, useNavigate } from 'react-router-dom'
-import Error from '../ui/Error'
-import { AuthContext } from '../../context/AuthContext'
-import { useCol } from 'react-bootstrap/esm/Col'
+import React, { useState, useContext } from "react";
+import { Link, useNavigate } from "react-router-dom";
+import { AuthContext } from "../../context/AuthContext";
+import Error from "../ui/Error";
 
 const Loginpage = () => {
-  const location = useLocation()
-  const navigate = useNavigate()
-  const [username, setUserName] = useState("")
-  const [password, setPassword] = useState("")
-  const [loading, setLoading] = useState(false)
-  const [error, setError] = useState("")
-  const userinfo = {
-    username, password
-  }
+  const { login } = useContext(AuthContext);
+  const navigate = useNavigate();
 
-  const {setIsAuthenticated, getUserProfile} = useContext(AuthContext)
+  const [username, setUserName] = useState("");
+  const [password, setPassword] = useState("");
+  const [userType, setUserType] = useState("customer");
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
 
+  async function handleSubmit(e) {
+    e.preventDefault();
+    setLoading(true);
+    setError("");
 
-
-
-  function handleSubmit(e) {
-    e.preventDefault()
-    setLoading(true)
-    api.post("token/", userinfo)
-      .then(res => {
-        console.log(res.data)
-        localStorage.setItem("access", res.data.access)
-        localStorage.setItem("refresh", res.data.refresh)
-        setUserName("")
-        setPassword("")
-
-        setLoading(false)
-        setError("")
-        setIsAuthenticated(true)
-        getUserProfile()
-        const frompath = location?.state?.from.pathname || "/";
-        navigate(frompath, { replace: true })
-      })
-      .catch(err => {
-        console.log(err.message)
-        setError(err.message)
-        setLoading(false)
-
-      })
+    try {
+      await login(username, password, userType);
+      navigate(localStorage.getItem("usertype") === "vendor" ? "/vendor_dashboard" : "/");
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
   }
 
   return (
-    <div className='login-container m-5 '>
-      <div className='login-card shadow p-5'>
+    <div className="d-flex flex-column justify-content-center align-items-center m-5 vh-75">
+      <div className="card p-4 shadow-lg border-0" style={{ maxWidth: "400px", width: "100%" }}>
         {error && <Error error={error} />}
-        <h2 className='login-title'>Welcome Back</h2>
-        <p className='login-subtitle'>please login to your account</p>
-        <form className='form' onSubmit={handleSubmit}>
-          <div className='mb-3'>
-            <label htmlFor='username' className='form-label'>User name:</label>
-            <input type="username"
-              className='form-control'
-              id="email"
+        <h2 className="text-center fw-bold text-primary">Welcome Back</h2>
+        <p className="text-center text-muted">Please login to your account</p>
+
+        <form onSubmit={handleSubmit}>
+          <div className="mb-3">
+            <label htmlFor="username" className="form-label">User Name:</label>
+            <input
+              type="text"
+              className="form-control"
+              id="username"
               value={username}
               onChange={(e) => setUserName(e.target.value)}
-              placeholder='Enter your username...' required>
-
-            </input>
-
+              placeholder="Enter your username..."
+              required
+            />
           </div>
-          <div className='mb-3'>
-            <label htmlFor='password' className='form-label'>Password:</label>
-            <input type="password"
-              className='form-control'
+
+          <div className="mb-3">
+            <label htmlFor="password" className="form-label">Password:</label>
+            <input
+              type="password"
+              className="form-control"
               id="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              placeholder='Enter your password...' required>
-            </input>
-
+              placeholder="Enter your password..."
+              required
+            />
           </div>
-          <button type='submit' className='btn btn-primary w-100' disabled={loading}>login</button>
+
+          <div className="mb-3">
+            <label htmlFor="user_type" className="form-label">User Type:</label>
+            <select
+              className="form-select"
+              id="user_type"
+              value={userType}
+              onChange={(e) => setUserType(e.target.value)}
+            >
+              <option value="customer">Customer</option>
+              <option value="vendor">Vendor</option>
+            </select>
+          </div>
+
+          <button type="submit" className="btn btn-primary w-100" disabled={loading}>
+            {loading ? "Logging in..." : "Login"}
+          </button>
         </form>
-        <div className='login-footer mt-3'>
-          <p><a href='/reset_key'>forgot password?</a></p>
-          <p>Don't have an account ? <Link to="/register">Sign up</Link></p>
+
+        <div className="text-center mt-3">
+          <p><a href="/reset_key" className="text-decoration-none">Forgot password?</a></p>
+          <p>Don't have an account? <Link to="/register" className="text-decoration-none">Sign up</Link></p>
         </div>
       </div>
     </div>
-  )
-}
+  );
+};
 
-export default Loginpage
+export default Loginpage;

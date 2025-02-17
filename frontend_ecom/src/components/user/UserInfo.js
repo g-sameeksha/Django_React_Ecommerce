@@ -2,13 +2,14 @@ import React from 'react'
 import { BiEdit } from 'react-icons/bi'
 import { FcEditImage } from 'react-icons/fc'
 import { DateFormattor } from '../../utils/DateFormattor'
-
+import api, { BASE_URL } from '../../utils/api'
 const UserInfo = ({user}) => {
   return (
     <div>
         <div className='row mb-4'>
             <div className='col-md-3 py-3 card'>
-                <img src={"hello"}
+                <img  
+                 src={`https://ui-avatars.com/api/?name=${user.username || "User"}&background=random`} 
                     className="img-fluid rounded mb-3 mx-auto"
                     style={{ height: "80px", width: "80px", objectFit: "cover" }}
                   />

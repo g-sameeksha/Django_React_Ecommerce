@@ -8,6 +8,19 @@ from rest_framework.permissions import IsAuthenticated
 from decimal import Decimal
 import uuid
 from django.conf import settings
+from rest_framework_simplejwt.tokens import RefreshToken
+from django.contrib.auth import authenticate
+from django.contrib.auth import get_user_model
+from django.db.models import Sum
+
+
+User = get_user_model()
+
+# from django.contrib.auth.models import User
+
+
+# from .models import Vendor
+
 # import paypalrestsdk
 # Create your views here.
 
@@ -107,11 +120,7 @@ def delete_cartitem(request):
     cartitem.delete()
     return Response({"message":"cartitem deleted successfully"},status = status.HTTP_204_NO_CONTENT)
 
-@api_view(["GET"])
-@permission_classes([IsAuthenticated])
-def get_username(request):
-    user = request.user
-    return Response({"username":user.username})
+
 
 
 @api_view(["GET"])
@@ -122,17 +131,65 @@ def get_userprofile(request):
     return Response(serializer.data)
 
 
+
+
 @api_view(["POST"])
 def register_user(request):
-    """
-    Function-based view to handle user registration.
-    """
+ 
     if request.method == "POST":
         serializer = RegisterSerializer(data=request.data)
         if serializer.is_valid():
             serializer.save()
             return Response({"message": "User registered successfully."}, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    
+
+
+
+@api_view(['POST'])
+def login(request):
+    username = request.data.get("username")
+    password = request.data.get("password")
+    user_type = request.data.get("userType")  # Ensure userType is coming in request
+
+    if not username or not password or not user_type:
+        return Response(
+            {"detail": "Username, password, and userType are required."}, 
+            status=status.HTTP_400_BAD_REQUEST
+        )
+    
+    # Check if the user exists with the given userType
+    try:
+        user = User.objects.get(username=username, user_type=user_type)  # Use your custom user model if needed
+    except User.DoesNotExist:
+        return Response(
+            {"detail": "No user found with the specified username and user type."}, 
+            status=status.HTTP_400_BAD_REQUEST
+        )
+
+    # Authenticate using the password
+    user = authenticate(request, username=username, password=password)
+
+    if user is not None:
+        # Generate JWT tokens
+        refresh = RefreshToken.for_user(user)
+        access_token = str(refresh.access_token)
+
+        return Response(
+            {
+                "access": access_token,
+                "refresh": str(refresh),
+                "userType": user_type,
+            },
+            status=status.HTTP_200_OK
+        )
+    else:
+        return Response(
+            {"detail": "Invalid credentials."}, 
+            status=status.HTTP_400_BAD_REQUEST
+        )
+
+
 
 @api_view(["POST"])
 def reset_password(request):
@@ -218,6 +275,91 @@ def paypal_payment_callback(request):
         return Response({"message": "Payment was cancelled"}, status=400)
     else:
         return Response({"message": "Invalid payment details"}, status=400)
+
+
+
+
+from django.db.models import Sum, Count, F
+from rest_framework.decorators import api_view, permission_classes
+from rest_framework.response import Response
+from rest_framework.permissions import IsAuthenticated
+from datetime import datetime, timedelta
+from .models import Product, Transaction, CartItem
+
+
+
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def add_product(request):
+    if request.user.user_type != 'vendor':  # Ensure that the user is a vendor
+        return Response({"detail": "You are not authorized to add products."}, status=status.HTTP_403_FORBIDDEN)
+
+    serializer = ProductSerializer(data=request.data)
+    if serializer.is_valid():
+        product = serializer.save(vendor=request.user)  # Save product with vendor info
+        return Response(ProductSerializer(product).data, status=status.HTTP_201_CREATED)
+
+    return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def vendor_dashboard(request):
+    vendor = request.user  
+
+    # Get products for the vendor
+    products = Product.objects.filter(vendor=vendor)
+    total_products = products.count()
+
+    # Calculate sales & revenue from transactions
+    transactions = Transaction.objects.filter(cart__items__product__vendor=vendor, status="completed")
+    
+    total_sales = transactions.count()
+    total_revenue = transactions.aggregate(total_revenue=Sum('amount'))['total_revenue'] or 0
+
+    # Top-selling products
+    top_selling_products = (
+        CartItem.objects.filter(cart__transactions__status="completed", product__vendor=vendor)
+        .values(name=F('product__name'))
+        .annotate(total_sold=Sum('quantity'))
+        .order_by('-total_sold')[:5]
+    )
+
+    # Stock status
+    stock_status = products.values('name', 'stock')
+
+    # Monthly sales trends (last 6 months)
+    six_months_ago = datetime.now() - timedelta(days=180)
+    monthly_sales = (
+        transactions.filter(created_at__gte=six_months_ago)
+        .annotate(month=F('created_at__month'))
+        .values('month')
+        .annotate(total_revenue=Sum('amount'))
+        .order_by('month')
+    )
+
+    return Response({
+        "total_products": total_products,
+        "total_sales": total_sales,
+        "total_revenue": total_revenue,
+        "top_selling_products": list(top_selling_products),
+        "stock_status": list(stock_status),
+        "monthly_sales": list(monthly_sales),
+    })
+
+
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def get_vendor_products(request):
+    vendor = request.user
+
+    vendor_products = Product.objects.filter(vendor=vendor)
+
+    serializer = ProductSerializer(vendor_products, many=True)
+
+    return Response(serializer.data, status=200)
+
+
 
 
 # @api_view(["POST"])

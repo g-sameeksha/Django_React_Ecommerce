@@ -3,6 +3,7 @@ import UserInfo from './UserInfo'
 import OrderHistoryContainer from './OrderHistoryContainer'
 import api from '../../utils/api'
 import Spinner from '../ui/Spinner'
+import VendorProducts from './VendorProducts'
 
 const UserProfilePage = () => {
     const [user,setUser] = useState({})
@@ -37,7 +38,8 @@ const UserProfilePage = () => {
   return (
     <div className='conatiner my-5'>
         <UserInfo user={user}/>
-        <OrderHistoryContainer orderItems={orderItems}/>
+        {user.user_type == "customer" && <OrderHistoryContainer orderItems={orderItems}/>}
+        {user.user_type == "vendor" && <VendorProducts/>}
     </div>
 
   )

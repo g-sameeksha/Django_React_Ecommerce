@@ -10,11 +10,15 @@ urlpatterns =[
     path('get_cart',views.get_cart,name="get_cart"),
     path('update_item_quantity',views.update_item_quantity,name="update_item_quantity"),
     path('delete_cartitem',views.delete_cartitem,name="delete_cartitem"),
-    path('get_username',views.get_username,name='get_username'),
+
     path('get_userprofile',views.get_userprofile,name="get_userprofile"),
     path('initiate_paypal_payment/',views.initiate_paypal_payment,name="initiate_paypal_payment"),
     path('paypal_payment_callback/',views.paypal_payment_callback,name="paypal_payment_callback"),
     path('register/', views.register_user, name='register_user'),
+    path('login/', views.login, name='vendor-login'),
+    path('vendor/', views.vendor_dashboard, name='vendor_dashboard'),
+    path('add-product/', views.add_product, name='add_product'),
+    path('get_vendor_products',views.get_vendor_products,name="vendor_products")
 
 
 

@@ -2,7 +2,8 @@ import React from 'react'
 import OrderItemHistory from './OrderItemHistory'
 
 const OrderHistoryContainer = ({orderItems}) => {
-  if(orderItems.length<1){
+
+  if(orderItems==null || orderItems.length <1){
     return <div className='row my-5'>
     <div className='col-md-12'>
         <div className='card'>
